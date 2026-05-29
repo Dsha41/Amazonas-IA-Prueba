@@ -1,0 +1,53 @@
+# ============================================================================
+# SERVER-IA Amazonas - dependencias minimas para person_amazona_inference.py
+# ============================================================================
+# Instalar con:
+#   pip install -r requirements.txt
+#
+# Si tu sistema tiene GPU NVIDIA con CUDA 11.8, usa el index de pytorch:
+#   pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cu118
+# Para CPU-only, simplemente quita el sufijo +cu118 de torch/torchvision.
+# ============================================================================
+
+# -- Servidor web / WebSocket -------------------------------------------------
+fastapi==0.121.1
+uvicorn==0.38.0
+starlette==0.49.3
+websockets==15.0.1
+httptools==0.7.1
+h11==0.16.0
+msgpack==1.1.2
+
+# -- HTTP cliente (envio de alertas) ------------------------------------------
+httpx==0.28.1
+httpcore==1.0.9
+requests==2.32.5
+
+# -- Vision / IA --------------------------------------------------------------
+# opencv-python trae cv2.dnn.readNet + FaceDetectorYN. Para Windows con
+# wheels prebuilt usa la version "python" (no "headless").
+opencv-python==4.12.0.88
+numpy==2.2.6
+pillow==12.0.0
+
+# -- YOLO + tracking (BoTSORT) ------------------------------------------------
+ultralytics==8.3.228
+lap==0.5.12
+
+# -- PyTorch (GPU CUDA 11.8). Cambia a +cpu si no tienes GPU. -----------------
+torch==2.7.1+cu118
+torchvision==0.22.1+cu118
+
+# -- ONNX runtime (InsightFace genderage + ArcFace embeddings) ---------------
+# Si no tienes GPU usa onnxruntime (CPU) en vez de onnxruntime-gpu.
+onnxruntime-gpu==1.23.2
+onnx==1.19.1
+
+# -- Hardware detection (hardware_available.py) -------------------------------
+psutil==7.1.3
+py-cpuinfo==9.0.0
+
+# -- Utilidades ---------------------------------------------------------------
+python-dotenv==1.2.1
+PyYAML==6.0.3
+scipy==1.15.3

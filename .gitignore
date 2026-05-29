@@ -1,0 +1,83 @@
+# ============================================================================
+# Python
+# ============================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# ============================================================================
+# Entornos virtuales
+# ============================================================================
+venv/
+env/
+ENV/
+.venv/
+
+# ============================================================================
+# IDEs
+# ============================================================================
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ============================================================================
+# OS
+# ============================================================================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ============================================================================
+# Secrets / Configuracion local
+# ============================================================================
+.env
+.env.local
+*.local
+
+# ============================================================================
+# Output del runtime (NO subir capturas, logs, screenshots)
+# ============================================================================
+output/
+runs/
+tmp/
+tmp_*/
+*.log
+*.csv
+detection_log.txt
+debug_cosmeticos/
+
+# ============================================================================
+# Cache de ultralytics y otros
+# ============================================================================
+.cache/
+yolo*n.pt
+yolo*s.pt
+
+# ============================================================================
+# Modelos opcionales NO incluidos en el repo
+# ============================================================================
+# El modelo de productos cosmeticos no se distribuye con el repo porque es
+# entrenamiento propio. Si cosmetics_enabled=False (default) no se necesita.
+models/cosmeticos/
+
+# Modelos auxiliares de la rama Perimetrales (no usados por este repo)
+models/osnet/
+models/base/modelos/

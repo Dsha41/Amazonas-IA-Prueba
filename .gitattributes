@@ -1,0 +1,35 @@
+# ============================================================================
+# Git LFS - pesos de modelos grandes
+# ============================================================================
+# Github rechaza archivos > 100MB sin LFS. w600k_r50.onnx pesa ~167MB.
+# Tambien aplica a los demas pesos del repo para evitar inflar el .git.
+#
+# Tras clonar el repo el usuario debe ejecutar:
+#   git lfs install
+#   git lfs pull
+# ============================================================================
+
+# Pesos PyTorch
+*.pt              filter=lfs diff=lfs merge=lfs -text
+*.pth             filter=lfs diff=lfs merge=lfs -text
+
+# Pesos ONNX
+*.onnx            filter=lfs diff=lfs merge=lfs -text
+
+# Caffe / TensorFlow / OpenCV DNN
+*.caffemodel      filter=lfs diff=lfs merge=lfs -text
+*.pb              filter=lfs diff=lfs merge=lfs -text
+
+# Pickle (Face Re-Identification DB)
+*.pkl             filter=lfs diff=lfs merge=lfs -text
+
+# ============================================================================
+# Line endings
+# ============================================================================
+*.py              text eol=lf
+*.md              text eol=lf
+*.txt             text eol=lf
+*.yaml            text eol=lf
+*.yml             text eol=lf
+*.json            text eol=lf
+*.toml            text eol=lf
