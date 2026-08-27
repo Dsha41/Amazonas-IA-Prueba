@@ -76,6 +76,29 @@ En `main` debe decir `"supported_inference": "Personal de Amazonas"`.
 > **`libgl1` NO hace falta en Windows.** Ese requisito del README es solo
 > para Linux headless.
 
+> **El puerto se cambia con `--port`, no con la variable de entorno.**
+> `config.py` declara `SERVER_PORT` pero `main.py` no la lee:
+> ```bash
+> python main.py --port 9100        # asi si
+> SERVER_PORT=9100 python main.py   # se ignora
+> ```
+
+### Verificado desde un clon limpio
+
+Se clono el repositorio desde cero y se comprobo lo siguiente:
+
+| Paso | Resultado |
+|---|---|
+| `git clone` | Los 270 MB de pesos LFS bajan solos |
+| `hummus_zones.json` y el video | Incluidos |
+| `python scripts/setup_models.py` | Descarga `yolo11m.pt` (41 MB) |
+| `python main.py` en ambas ramas | Arranca sin errores |
+| Detectar los dos eventos | Funciona |
+
+**Lo unico NO verificado es `pip install -r requirements.txt`**, porque se
+uso un entorno que ya tenia las dependencias. Ese es el paso con mas
+riesgo (versiones de Python, ruedas de PyTorch) y conviene probarlo.
+
 ### 2.2 Levantar el cliente
 
 ```bash
