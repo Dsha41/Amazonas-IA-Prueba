@@ -24,9 +24,10 @@ cuenta cada evento por separado.
 """
 
 import time
+from collections import deque
 import math
 import logging
-from typing import Dict, List, Tuple, Optional
+from typing import Deque, Dict, List, Optional, Tuple
 
 import cv2
 import numpy as np
@@ -94,12 +95,22 @@ class ZoneEventTracker:
             if staff_pair_polygon is not None else None
         )
 
-        # (staff_id, client_id) -> timestamp de inicio de la proximidad
         # (staff_id, client_id) -> {"inicio": t, "visto": t}
         self._active_proximities: Dict[Tuple[int, int], Dict[str, float]] = {}
         # client_id -> evento confirmado (una vez por cliente, para ESTE evento)
         self._confirmed: Dict[int, Dict] = {}
         self._history: List[Dict] = []
+
+        # Diagnostico de cadencia. Si el intervalo entre frames procesados
+        # supera a max_gap_sec, el cronometro se reinicia SIEMPRE y no se
+        # confirma nada nunca -- en silencio. Pasa de verdad: en CPU el
+        # servidor tarda ~1.5 s por frame y el valor calibrado sobre video
+        # a 11.9 fps era 1.0 s. Se avisa una vez para que se vea.
+        self._ultimo_now: Optional[float] = None
+        self._aviso_cadencia_dado = False
+        # Intervalos recientes entre frames, para ajustar la tolerancia
+        # a la cadencia real. Ver _gap_efectivo().
+        self._intervalos: Deque[float] = deque(maxlen=20)
 
     @staticmethod
     def _is_inside(point: Tuple[float, float], polygon: np.ndarray) -> bool:
@@ -107,6 +118,61 @@ class ZoneEventTracker:
 
     def _is_staff(self, center: Tuple[float, float]) -> bool:
         return self._is_inside(center, self._staff_polygon)
+
+    def _gap_efectivo(self) -> float:
+        """Tolerancia real, ajustada a la cadencia observada.
+
+        max_gap_sec es un parametro TECNICO: cuanto tiempo puedo perder de
+        vista a alguien antes de dar la interrupcion por definitiva. Su
+        valor correcto depende de cada cuanto llegan los frames, y eso
+        cambia radicalmente segun donde corra:
+
+            analisis offline, tiempo de video a 11.9 fps -> 0.08 s/frame
+            servidor en CPU, reloj de pared              -> ~1.5 s/frame
+
+        Con 1.0 s configurado, lo primero funciona y lo segundo no detecta
+        nada: cada frame se considera una interrupcion. Por eso la
+        tolerancia efectiva nunca baja de 2.5 intervalos observados.
+
+        A 11.9 fps eso da 0.21 s, por debajo del 1.0 s configurado, asi
+        que el valor configurado manda y el comportamiento offline no
+        cambia. En el servidor lento da ~3.7 s, que es lo que hace falta.
+        """
+        if len(self._intervalos) < 3:
+            return self._max_gap_sec
+        ordenados = sorted(self._intervalos)
+        mediana = ordenados[len(ordenados) // 2]
+        return max(self._max_gap_sec, 2.5 * mediana)
+
+    def _revisar_cadencia(self, now: float):
+        """Avisa si los frames llegan mas espaciados que la tolerancia.
+
+        Cuando eso pasa, cada frame se considera una interrupcion, el
+        cronometro vuelve a cero y NUNCA se confirma un evento. Sin este
+        aviso el sintoma es "no detecta nada" sin ninguna pista del porque.
+        """
+        anterior = self._ultimo_now
+        self._ultimo_now = now
+        if anterior is None:
+            return
+        intervalo = now - anterior
+        if intervalo > 0:
+            self._intervalos.append(intervalo)
+        # El aviso se da una sola vez, pero los intervalos se siguen
+        # registrando siempre: la tolerancia adaptativa los necesita.
+        if self._aviso_cadencia_dado:
+            return
+        if intervalo > self._gap_efectivo():
+            self._aviso_cadencia_dado = True
+            logger.warning(
+                "[%s] los frames llegan cada %.1f s, mas que los %.1f s "
+                "configurados en max_gap_sec. Sin compensar, el cronometro "
+                "se reiniciaria en cada frame y no se confirmaria nada. Se "
+                "esta usando una tolerancia efectiva ajustada a esa "
+                "cadencia; sube max_gap_sec por encima de %.1f s para "
+                "dejarlo explicito.",
+                self.event_name, intervalo, self._max_gap_sec, intervalo,
+            )
 
     def update(self, active_tracks: Dict[int, Dict], now: Optional[float] = None) -> List[Dict]:
         """Actualiza proximidades con los tracks del frame actual.
@@ -124,6 +190,7 @@ class ZoneEventTracker:
         """
         if now is None:
             now = time.time()
+        self._revisar_cadencia(now)
         new_events = []
 
         staff = {}
@@ -157,7 +224,7 @@ class ZoneEventTracker:
                     current_close_pairs.add(pair)
 
                     prox = self._active_proximities.get(pair)
-                    if prox is None or (now - prox["visto"]) > self._max_gap_sec:
+                    if prox is None or (now - prox["visto"]) > self._gap_efectivo():
                         # Pareja nueva, o el hueco fue tan largo que la
                         # cercania anterior se da por terminada.
                         self._active_proximities[pair] = {"inicio": now, "visto": now}
@@ -189,7 +256,7 @@ class ZoneEventTracker:
         # una oclusion breve reiniciara la cuenta.
         caducadas = [p for p, v in self._active_proximities.items()
                      if p not in current_close_pairs
-                     and (now - v["visto"]) > self._max_gap_sec]
+                     and (now - v["visto"]) > self._gap_efectivo()]
         for pair in caducadas:
             del self._active_proximities[pair]
 
