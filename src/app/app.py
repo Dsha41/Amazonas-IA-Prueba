@@ -41,6 +41,7 @@ import asyncio
 import base64
 import json
 import logging
+import os
 import time
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
@@ -71,6 +72,11 @@ JPEG_QUALITY: int = 70
 EXECUTOR_WORKERS: int = 8
 
 SUPPORTED_INFERENCE = "Personal de Amazonas"
+
+# Layouts que este servidor acepta. El cliente ya manda el nombre en la
+# ruta del websocket (ws://host:9000/ws/<layout>), asi que anadir uno solo
+# requiere aceptarlo aqui y saber que procesador construirle.
+SUPPORTED_INFERENCES = {SUPPORTED_INFERENCE, "Hummus"}
 
 
 # -----------------------------------------------------------------------------
@@ -133,20 +139,65 @@ def _get_first_gpu() -> str:
     return dev if isinstance(dev, str) else "cpu"
 
 
-def _build_processor(client_id: str, config: Dict[str, Any]) -> PersonAmazonas:
-    """Instancia el procesador PersonAmazonas."""
+def _ruta_modelo_si_existe(rutas: Dict[str, Any], layout: str,
+                           etiqueta: str) -> Optional[str]:
+    """Devuelve la ruta configurada para un layout, o None si no esta en disco.
+
+    Devolver None es deliberado: PersonAmazonas cae entonces a su modelo
+    por defecto (models/base/yolo11m.pt), que es el que descarga
+    scripts/setup_models.py.
+
+    Hace falta porque NINGUN modelo declarado en config.py existe en el
+    repositorio: faltan 1080.pt, yolo12l.pt y best.pt. Hoy el servidor
+    funciona por accidente -- person_model_paths solo tiene la clave
+    "Hummus", asi que buscar "Personal de Amazonas" da None y se usa el
+    de por defecto. Sin esta comprobacion, enrutar por layout encontraria
+    la clave "Hummus" -> yolo12l.pt, el archivo no existiria, y romperia
+    algo que hoy funciona.
+    """
+    ruta = rutas.get(layout)
+    if not ruta:
+        return None
+    if os.path.exists(ruta):
+        return ruta
+    logger.warning(
+        "Modelo %s de '%s' no existe en disco (%s). Se usara el de por "
+        "defecto.", etiqueta, layout, ruta
+    )
+    return None
+
+
+def _build_processor(client_id: str, config: Dict[str, Any],
+                     type_inference: str = SUPPORTED_INFERENCE):
+    """Instancia el procesador adecuado para el layout pedido.
+
+    Para "Hummus" devuelve un HummusProcessor que ENVUELVE al
+    PersonAmazonas: el pipeline original no se modifica, solo se le anaden
+    los eventos de mostrador sobre la marcha.
+    """
     gpu = _get_first_gpu()
     model_paths = config.get("model_paths", {}) or {}
     person_paths = config.get("person_model_paths", {}) or {}
 
-    return PersonAmazonas(
+    base = PersonAmazonas(
         client_id=client_id,
-        model_path=model_paths.get("Personal de Amazonas"),
-        person_model_path=person_paths.get("Personal de Amazonas"),
+        model_path=_ruta_modelo_si_existe(model_paths, type_inference, "de productos"),
+        person_model_path=_ruta_modelo_si_existe(person_paths, type_inference, "de personas"),
         confidence_threshold=config.get("confidence_threshold", 0.5),
         iou_threshold=config.get("iou_threshold", 0.4),
         device=gpu,
     )
+
+    if type_inference == "Hummus":
+        # Import diferido: si Hummus no se usa, no se carga nada de esto.
+        from ..analityc.core.hummus_processor import HummusProcessor
+        logger.info("Layout 'Hummus': analitica de mostrador activada")
+        return HummusProcessor(base, output_dirs={
+            "hummus_order_screenshot_dir": config.get("hummus_order_screenshot_dir"),
+            "hummus_delivery_screenshot_dir": config.get("hummus_delivery_screenshot_dir"),
+        })
+
+    return base
 
 
 # -----------------------------------------------------------------------------
@@ -348,18 +399,19 @@ async def websocket_endpoint(websocket: WebSocket, type_inference: str):
     worker: Optional[ClientWorker] = None
     processor: Optional[PersonAmazonas] = None
 
-    if type_inference != SUPPORTED_INFERENCE:
+    if type_inference not in SUPPORTED_INFERENCES:
+        expuestos = "', '".join(sorted(SUPPORTED_INFERENCES))
         await websocket.send_text(json.dumps({
             "status": "error",
             "message": (f"Tipo de inferencia '{type_inference}' no soportado. "
-                        f"Este servidor solo expone '{SUPPORTED_INFERENCE}'.")
+                        f"Este servidor expone: '{expuestos}'.")
         }))
         await websocket.close(code=1008)
         return
 
     try:
         config = get_config()
-        processor = _build_processor(client_id, config)
+        processor = _build_processor(client_id, config, type_inference)
 
         worker = ClientWorker(client_id, processor)
         worker.start()
@@ -510,7 +562,8 @@ def init_server():
         "status": "active",
         "service": "SERVER-IA Amazonas",
         "connections": len(active_connections),
-        "supported_inference": SUPPORTED_INFERENCE,
+        "supported_inference": SUPPORTED_INFERENCE,   # compatibilidad
+        "supported_inferences": sorted(SUPPORTED_INFERENCES),
     }
 
 

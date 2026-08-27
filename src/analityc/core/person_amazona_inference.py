@@ -2776,6 +2776,21 @@ class PersonAmazonas:
                 # Restaurar estado global
                 self._pop_state()
 
+    def get_active_tracks(self, camera_id: Any = 1) -> Dict[int, Dict[str, Any]]:
+        """Tracks activos de una camara, tras procesar un frame.
+
+        process_frame() intercambia el estado global por el de la camara
+        al entrar (_push_state) y lo restaura al salir (_pop_state, en un
+        finally). Por eso, cuando process_frame() retorna,
+        self.active_tracks vuelve a ser el diccionario vacio del __init__
+        y los tracks reales quedan en camera_states.
+
+        Sin este accesor, quien quiera leer los tracks desde fuera tiene
+        que descubrir ese detalle por su cuenta -- y leer self.active_tracks
+        devuelve un diccionario vacio sin dar ningun error.
+        """
+        return self.camera_states.get(camera_id, {}).get('active_tracks', {})
+
     def set_roi(self, roi_points: List[Tuple[int, int]]):
         self.roi_polygon = np.array(roi_points, np.int32)
         print(f"✅ ROI actualizado a {len(roi_points)} puntos")
