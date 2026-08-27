@@ -35,12 +35,12 @@ ultralytics==8.3.228
 lap==0.5.12
 
 # -- PyTorch (GPU CUDA 11.8). Cambia a +cpu si no tienes GPU. -----------------
-torch==2.7.1+cu118
-torchvision==0.22.1+cu118
+torch==2.7.1
+torchvision==0.22.1
 
 # -- ONNX runtime (InsightFace genderage + ArcFace embeddings) ---------------
 # Si no tienes GPU usa onnxruntime (CPU) en vez de onnxruntime-gpu.
-onnxruntime-gpu==1.23.2
+onnxruntime==1.23.2
 onnx==1.19.1
 
 # -- Hardware detection (hardware_available.py) -------------------------------

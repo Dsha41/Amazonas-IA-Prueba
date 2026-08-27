@@ -70,6 +70,10 @@ debug_cosmeticos/
 .cache/
 yolo*n.pt
 yolo*s.pt
+# Los pesos base de YOLO los descarga scripts/setup_models.py, asi que no
+# tiene sentido versionarlos (yolo11m.pt son 39 MB). Las reglas de arriba
+# solo cubrian las variantes nano y small.
+models/base/yolo*.pt
 
 # ============================================================================
 # Modelos opcionales NO incluidos en el repo

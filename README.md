@@ -71,6 +71,20 @@ pip install -r requirements.txt --extra-index-url https://download.pytorch.org/w
 > `torch==2.7.1`, `torchvision==0.22.1`, y `onnxruntime-gpu` por
 > `onnxruntime`.
 
+> **Linux sin entorno gráfico** (servidores, Docker, GitHub Codespaces):
+> `opencv-python` requiere librerías del sistema que no vienen en imágenes
+> headless. Instálalas antes de las dependencias de Python:
+> ```bash
+> sudo apt-get update && sudo apt-get install -y libgl1 libglib2.0-0
+> ```
+> Sin esto, `import ultralytics` falla con `libGL.so.1: cannot open shared
+> object file`. No aplica en Windows ni en Linux con escritorio.
+>
+> El repo incluye `.devcontainer/devcontainer.json` que automatiza estos
+> pasos al abrir el proyecto en Codespaces o Dev Containers. Está
+> configurado para CPU; para desarrollo con GPU usa la instalación manual
+> descrita arriba.
+
 ### 3. Descargar pesos restantes
 
 El repo incluye (vía Git LFS):
