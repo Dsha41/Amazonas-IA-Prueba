@@ -236,11 +236,36 @@ Ver el accesor de la sección 4.
 
 ## 10. Errores propios, para no repetirlos
 
-**Trocear el vídeo en capturas separadas.** Se procesó en tres tandas y
-cada una reiniciaba BoTSORT. Al empalmarlas parecía que el tracking
-intercambiaba identidades y que una clienta eran tres. Era **artefacto
-del método**: en una pasada continua sale una sola. Los dos "intercambios"
-detectados caían exactamente en las costuras entre capturas.
+**Trocear el vídeo en capturas separadas.** Se procesó en tres tandas
+(frames 0-300, 300-700, 700-1035) y cada una reiniciaba BoTSORT. Al
+empalmar los resultados parecía que el tracking intercambiaba identidades
+y que una clienta eran tres.
+
+Era **artefacto del método**. Los dos "intercambios" caían exactamente en
+las costuras:
+
+| Salto detectado | Frontera de las capturas |
+|---|---|
+| t=25.2s | frame 300 ÷ 11.919 = **25.17s** |
+| t=58.7s | frame 700 ÷ 11.919 = **58.73s** |
+
+En una pasada continua sale una sola clienta y una sola orden.
+
+> **NO se arregló nada del tracking, porque no estaba roto.** Si alguien
+> pregunta "cómo arreglamos los track_id", la respuesta es que no hubo
+> nada que arreglar: se corrigió *cómo se ejecutaba la prueba*, no el
+> código. El servidor real procesa un flujo continuo, así que el problema
+> no existe en producción.
+>
+> `max_gap_sec` **no** tiene que ver con esto: tolera que falle la
+> *detección* unos frames, no que cambie el identificador. Si el ID
+> cambia, esa tolerancia no ayuda — el cronómetro se guarda por ID.
+>
+> Si los identificadores sí se rompieran en producción, la herramienta ya
+> está en el repositorio: `face_reidentifier.py` con ArcFace. Se probó y
+> **funciona** (unió los tracks 100026 y 100073 bajo el mismo UUID), pero
+> no sirve para la clienta de la caja: la cámara está arriba y detrás, y
+> nunca se le ve la cara.
 
 **Saltar frames.** BoTSORT asume frames consecutivos.
 
